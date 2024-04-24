@@ -1,41 +1,37 @@
 "use client";
 
+import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
 import { useEffect, useState } from "react";
-import { useDebounceCallback, useDebounceValue } from "usehooks-ts";
-import { useToast } from "@/components/ui/use-toast";
-import { useRouter } from "next/navigation";
-import { signUpSchema } from "@/schemas/signUpSchema";
-import axios, { AxiosError } from "axios";
-import { ApiResponse } from "@/types/ApiResponse";
+import { useForm } from "react-hook-form";
+import { useDebounceCallback } from "usehooks-ts";
+import * as z from "zod";
+
+import { Button } from "@/components/ui/button";
 import {
     Form,
-    FormControl,
     FormField,
     FormItem,
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import axios, { AxiosError } from "axios";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { signUpSchema } from "@/schemas/signUpSchema";
 
-export default function SignUpPage() {
+export default function SignUpForm() {
     const [username, setUsername] = useState("");
     const [usernameMessage, setUsernameMessage] = useState("");
     const [isCheckingUsername, setIsCheckingUsername] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
     const debounced = useDebounceCallback(setUsername, 500);
 
-    const { toast } = useToast();
-
     const router = useRouter();
-
-    // zod implementation
+    const { toast } = useToast();
 
     const form = useForm<z.infer<typeof signUpSchema>>({
         resolver: zodResolver(signUpSchema),
@@ -47,42 +43,32 @@ export default function SignUpPage() {
     });
 
     useEffect(() => {
-        const checkUniqueUsername = async () => {
+        const checkUsernameUnique = async () => {
             if (username) {
                 setIsCheckingUsername(true);
-
-                setUsernameMessage("");
-
+                setUsernameMessage(""); // Reset message
                 try {
-                    const response = await axios.get(
+                    const response = await axios.get<ApiResponse>(
                         `/api/check-username-unique?username=${username}`
                     );
-
-                    console.log(response);
-                    console.log(response.data.message);
-
                     setUsernameMessage(response.data.message);
                 } catch (error) {
                     const axiosError = error as AxiosError<ApiResponse>;
                     setUsernameMessage(
                         axiosError.response?.data.message ??
-                            "Error while checking username"
+                            "Error checking username"
                     );
                 } finally {
                     setIsCheckingUsername(false);
                 }
             }
         };
-
-        checkUniqueUsername();
+        checkUsernameUnique();
     }, [username]);
 
     const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
         setIsSubmitting(true);
-
         try {
-            console.log(data);
-
             const response = await axios.post<ApiResponse>(
                 "/api/sign-up",
                 data
@@ -95,11 +81,13 @@ export default function SignUpPage() {
 
             router.replace(`/verify/${username}`);
         } catch (error) {
-            console.error("Error while verifying username", error);
+            console.error("Error during sign-up:", error);
 
             const axiosError = error as AxiosError<ApiResponse>;
 
+            // Default error message
             let errorMessage = axiosError.response?.data.message;
+            ("There was a problem with your sign-up. Please try again.");
 
             toast({
                 title: "Sign Up Failed",
@@ -134,11 +122,10 @@ export default function SignUpPage() {
                                 <FormItem>
                                     <FormLabel>Username</FormLabel>
                                     <Input
-                                        placeholder="Enter you username"
                                         {...field}
                                         onChange={(e) => {
                                             field.onChange(e);
-                                            setUsername(e.target.value);
+                                            debounced(e.target.value);
                                         }}
                                     />
                                     {isCheckingUsername && (
@@ -166,11 +153,7 @@ export default function SignUpPage() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Email</FormLabel>
-                                    <Input
-                                        {...field}
-                                        name="email"
-                                        placeholder="Enter you email"
-                                    />
+                                    <Input {...field} name="email" />
                                     <p className="text-muted text-gray-400 text-sm">
                                         We will send you a verification code
                                     </p>
@@ -185,12 +168,7 @@ export default function SignUpPage() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Password</FormLabel>
-                                    <Input
-                                        placeholder="Enter password"
-                                        type="password"
-                                        {...field}
-                                        name="password"
-                                    />
+                                    <Input type="password" {...field} />
                                     <FormMessage />
                                 </FormItem>
                             )}

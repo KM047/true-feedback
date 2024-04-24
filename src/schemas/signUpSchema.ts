@@ -12,7 +12,5 @@ export const signUpSchema = z.object({
     password: z
         .string()
         .min(6, { message: "Invalid password must be at least 6 characters" }),
-    verifyCode: z
-        .string()
-        .min(6, { message: "Invalid code must be at least 6 characters" }),
+    
 });

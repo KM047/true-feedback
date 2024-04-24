@@ -5,21 +5,27 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useEffect, useState } from "react";
-import { useDebounceValue } from "usehooks-ts";
+import { useDebounceCallback } from "usehooks-ts";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { signUpSchema } from "@/schemas/signUpSchema";
 import axios, { AxiosError } from "axios";
 import { ApiResponse } from "@/types/ApiResponse";
-import { Form } from "@/components/ui/form";
+import {
+    Form,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
+import { signInSchema } from "@/schemas/signInSchema";
+import { signIn } from "next-auth/react";
 
-const Page = () => {
-    const [username, setUsername] = useState("");
-    const [usernameMessage, setUsernameMessage] = useState("");
-    const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+const SignInPage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const debouncedUsername = useDebounceValue(username, 300);
 
     const { toast } = useToast();
 
@@ -27,84 +33,119 @@ const Page = () => {
 
     // zod implementation
 
-    const form = useForm<z.infer<typeof signUpSchema>>({
-        resolver: zodResolver(signUpSchema),
+    const form = useForm<z.infer<typeof signInSchema>>({
+        resolver: zodResolver(signInSchema),
         defaultValues: {
-            username: "",
-            email: "",
+            identifier: "",
             password: "",
         },
     });
 
-    useEffect(() => {
-        const checkUniqueUsername = async () => {
-            if (debouncedUsername) {
-                setIsCheckingUsername(true);
-
-                setUsernameMessage("");
-
-                try {
-                    const response = await axios.get(
-                        `/api/check-username-unique?username=${debouncedUsername}`
-                    );
-
-                    console.log(response);
-
-                    setUsernameMessage(response.data.message);
-                } catch (error) {
-                    const axiosError = error as AxiosError<ApiResponse>;
-                    setUsernameMessage(
-                        axiosError.response?.data.message ??
-                            "Error while checking username"
-                    );
-                } finally {
-                    setIsCheckingUsername(false);
-                }
-            }
-        };
-
-        checkUniqueUsername();
-    }, [debouncedUsername]);
-
-    const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
+    const onSubmit = async (data: z.infer<typeof signInSchema>) => {
         setIsSubmitting(true);
 
-        try {
-            console.log(data);
+        const result = await signIn("credentials", {
+            redirect: false,
+            identifier: data.identifier,
+            password: data.password,
+        });
 
-            const response = await axios.post<ApiResponse>(
-                "/api/sign-up",
-                data
-            );
+        if (result?.error) {
+            if (result.error == "CredentialsSignInError") {
+                toast({
+                    title: "Sign in failed",
+                    description: "Invalid credentials",
+                    variant: "destructive",
+                });
+            } else {
+                toast({
+                    title: "Error",
+                    description: result.error,
+                    variant: "destructive",
+                });
+            }
+        }
 
-            toast({
-                title: "Success",
-                description: response.data.message,
-            });
-
-            router.replace(`/verify/${username}`);
-        } catch (error) {
-            console.error("Error while verifying username", error);
-
-            const axiosError = error as AxiosError<ApiResponse>;
-
-            let errorMessage = axiosError.response?.data.message;
-
-            toast({
-                title: "Sign Up Failed",
-                description: errorMessage,
-                variant: "destructive",
-            });
-        } finally {
-            setIsSubmitting(false);
+        if (result?.url) {
+            router.replace("/dashboard");
         }
     };
 
     return (
         <div className="flex justify-center items-center min-h-screen bg-gray-800">
-            
+            <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+                <div className="text-center">
+                    <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl mb-6">
+                        Join True Feedback
+                    </h1>
+                    <p className="mb-4">Sign in with credentials</p>
+                </div>
+                <Form {...form}>
+                    <form
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        className="space-y-6"
+                    >
+                        <FormField
+                            name="identifier"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Email</FormLabel>
+                                    <Input
+                                        {...field}
+                                        placeholder="Enter your email or username"
+                                    />
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            name="password"
+                            control={form.control}
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Password</FormLabel>
+                                    <Input
+                                        type="password"
+                                        {...field}
+                                        name="password"
+                                        placeholder="Enter your password"
+                                    />
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Please wait
+                                </>
+                            ) : (
+                                "Sign In"
+                            )}
+                        </Button>
+                    </form>
+                </Form>
+                <div className="text-center mt-4">
+                    <p>
+                        New member?{" "}
+                        <Link
+                            href="/sign-up"
+                            className="text-blue-600 hover:text-blue-800"
+                        >
+                            Sign up
+                        </Link>
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };
 
-export default Page;
+export default SignInPage;
