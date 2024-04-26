@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, model, models } from "mongoose";
-import { metadata } from "../app/(app)/layout";
 
 export interface Message extends Document {
     content: string;
