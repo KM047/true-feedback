@@ -50,11 +50,22 @@ export async function GET(request: Request) {
             },
         ]);
 
-        if (!user || user.length === 0) {
+        if (!user) {
             return Response.json(
                 {
                     success: false,
                     message: "User not found or the user have no messages",
+                },
+                {
+                    status: 500,
+                }
+            );
+        }
+        if (user.length === 0) {
+            return Response.json(
+                {
+                    success: false,
+                    message: "User have no messages",
                 },
                 {
                     status: 500,
