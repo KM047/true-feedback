@@ -4,16 +4,15 @@ import { authOptions } from "../auth/[...nextauth]/options";
 import { getServerSession } from "next-auth";
 import { User } from "next-auth";
 import mongoose from "mongoose";
-import { messageSchema } from "./../../../schemas/messageSchema";
 
 export async function GET(request: Request) {
     await dbConnection();
 
     const session = await getServerSession(authOptions);
 
-    const user: User = session?.user as User;
+    const _user: User = session?.user as User;
 
-    if (!session || !session.user) {
+    if (!session || !_user) {
         return Response.json(
             {
                 success: false,
@@ -25,12 +24,13 @@ export async function GET(request: Request) {
         );
     }
 
-    const userId = new mongoose.Types.ObjectId(user._id);
+    const userId = new mongoose.Types.ObjectId(_user._id);
+
     try {
-        const user = await UserModel.aggregate([
+        const currUser = await UserModel.aggregate([
             {
                 $match: {
-                    id: userId,
+                    _id: userId,
                 },
             },
             {
@@ -48,9 +48,11 @@ export async function GET(request: Request) {
                     messages: { $push: "$messages" },
                 },
             },
-        ]);
+        ]).exec();
 
-        if (!user) {
+        // console.log("user", currUser);
+
+        if (!currUser) {
             return Response.json(
                 {
                     success: false,
@@ -61,7 +63,7 @@ export async function GET(request: Request) {
                 }
             );
         }
-        if (user.length === 0) {
+        if (currUser.length === 0) {
             return Response.json(
                 {
                     success: false,
@@ -73,10 +75,12 @@ export async function GET(request: Request) {
             );
         }
 
+        // console.log("user", currUser);
+
         return Response.json(
             {
                 success: true,
-                messages: user[0].messages,
+                messages: currUser[0].messages,
             },
             {
                 status: 200,

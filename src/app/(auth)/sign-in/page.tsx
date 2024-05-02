@@ -50,7 +50,7 @@ const SignInPage = () => {
             password: data.password,
         });
 
-        console.log(result);
+        // console.log(result);
         setIsSubmitting(false);
 
         if (result?.error) {

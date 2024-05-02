@@ -8,13 +8,13 @@ import { AcceptMessageSchema } from "@/schemas/acceptMessageSchema";
 import { ApiResponse } from "@/types/ApiResponse";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Separator } from "@radix-ui/react-separator";
-import { Switch } from "@radix-ui/react-switch";
 import axios, { AxiosError } from "axios";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { User } from "next-auth";
+import { Switch } from "@/components/ui/switch";
 
 const Dashboard = () => {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -63,33 +63,29 @@ const Dashboard = () => {
         } finally {
             setIsSwitchLoading(false);
         }
-    }, [setValue]);
+    }, [setValue, toast]);
 
     const fetchMessages = useCallback(
         async (refresh: boolean = false) => {
             setIsLoading(true);
-            setIsSwitchLoading(true);
-
+            setIsSwitchLoading(false);
             try {
                 const response = await axios.get<ApiResponse>(
                     "/api/get-messages"
                 );
-
                 setMessages(response.data.messages || []);
-
                 if (refresh) {
                     toast({
                         title: "Refreshed Messages",
-                        description: "showing latest messages",
+                        description: "Showing latest messages",
                     });
                 }
             } catch (error) {
                 const axiosError = error as AxiosError<ApiResponse>;
-
                 toast({
                     title: "Error",
                     description:
-                        axiosError.response?.data.message ||
+                        axiosError.response?.data.message ??
                         "Failed to fetch messages",
                     variant: "destructive",
                 });
@@ -98,7 +94,7 @@ const Dashboard = () => {
                 setIsSwitchLoading(false);
             }
         },
-        [setIsLoading, setMessages]
+        [setIsLoading, setMessages, toast]
     );
 
     useEffect(() => {
@@ -106,6 +102,8 @@ const Dashboard = () => {
         fetchMessages();
         fetchAcceptMessage();
     }, [session, setValue, fetchAcceptMessage, fetchMessages]);
+
+    // console.log("messages", messages);
 
     // handle switch change
 
@@ -137,15 +135,17 @@ const Dashboard = () => {
         }
     };
 
-    // const { username } = (session?.user as User) ?? "";
-    const { username } = session?.user as User;
+    const { username } = (session?.user as User) ?? "";
+    // const { username } = session?.user as User;
 
-    console.log("session", session);
+    // console.log("session", session);
 
     // TODO: find the best and worst way to get the host url
-    const baseUrl = `${window.location.protocol}//${window.location.host}`;
 
+    const baseUrl = `${window.location.protocol}//${window.location.host}`;
     const profileUrl = `${baseUrl}/u/${username}`;
+
+    // console.log(profileUrl);
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(profileUrl);
@@ -156,8 +156,13 @@ const Dashboard = () => {
         });
     };
     if (!session || !session.user) {
-        return <div>Please login</div>;
+        return (
+            <div className=" w-full h-[500px] flex justify-center items-center">
+                <Loader2 className="h-10 w-10 animate-spin" />
+            </div>
+        );
     }
+
     return (
         <div className="my-8 mx-4 md:mx-8 lg:mx-auto p-6 bg-white rounded w-full max-w-6xl">
             <h1 className="text-4xl font-bold mb-4">User Dashboard</h1>
@@ -222,4 +227,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
